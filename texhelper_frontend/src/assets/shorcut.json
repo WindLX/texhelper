@@ -1,0 +1,18 @@
+{
+    "common": {
+        "binary_operator": [],
+        "binary_relations": [],
+        "arrows": [],
+        "others": []
+    },
+    "latin": {
+        "lowercase": [],
+        "uppercase": [],
+        "others": []
+    },
+    "fractions": {
+        "fractions": [],
+        "derivative": [],
+        "modular_arithmetic": []
+    }
+}

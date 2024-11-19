@@ -7,7 +7,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    copy: typeof import('./src/components/Quick copy.vue')['default']
+    copy: typeof import('./src/components/ShortcutMenu copy.vue')['default']
+    Editor: typeof import('./src/components/Editor.vue')['default']
+    EditorMenu: typeof import('./src/components/EditorMenu.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElButtonGroup: typeof import('element-plus/es')['ElButtonGroup']
     ElCard: typeof import('element-plus/es')['ElCard']

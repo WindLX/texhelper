@@ -1,7 +1,7 @@
 import re
 import io
 import os
-import csv
+import logging
 
 import numpy as np
 import onnxruntime as ort
@@ -39,13 +39,29 @@ class MixTeXApp:
             os.makedirs(self.data_folder)
         self.model = self.load_model("onnx")
 
-    def load_model(self, path):
+    def load_model(self, path: str):
+        """
+        Load the tokenizer, feature extractor, and ONNX models from the specified path.
+
+        Args:
+            path (str): The file path to the directory containing the model files.
+
+        Returns:
+            tuple: A tuple containing the following elements:
+            - tokenizer (AutoTokenizer): The tokenizer loaded from the specified path.
+            - feature_extractor (AutoImageProcessor): The feature extractor loaded from the specified path.
+            - encoder_session (ort.InferenceSession): The ONNX inference session for the encoder model.
+            - decoder_session (ort.InferenceSession): The ONNX inference session for the decoder model.
+
+        Raises:
+            IOError: If there is an error loading the models or tokenizer.
+        """
         try:
             tokenizer = AutoTokenizer.from_pretrained(path)
             feature_extractor = AutoImageProcessor.from_pretrained(path)
             encoder_session = ort.InferenceSession(f"{path}/encoder_model.onnx")
             decoder_session = ort.InferenceSession(f"{path}/decoder_model_merged.onnx")
-            print("\n===成功加载模型===\n")
+            logging.info("Successfully loaded models and tokenizer")
         except Exception as e:
             raise IOError(f"Error loading models or tokenizer: {e}")
         return (tokenizer, feature_extractor, encoder_session, decoder_session)
@@ -53,12 +69,12 @@ class MixTeXApp:
     def mixtex_inference(
         self,
         image,
-        max_length=512,
-        num_layers=3,
-        hidden_size=768,
-        num_attention_heads=12,
-        batch_size=1,
-    ):
+        max_length: int = 512,
+        num_layers: int = 3,
+        hidden_size: int = 768,
+        num_attention_heads: int = 12,
+        batch_size: int = 1,
+    ) -> str:
         tokenizer, feature_extractor, encoder_session, decoder_session = self.model
         try:
             generated_text = ""
@@ -104,7 +120,8 @@ class MixTeXApp:
         except Exception as e:
             raise RuntimeError(f"Error during OCR: {e}")
 
-    def convert_align_to_equations(self, text):
+    @staticmethod
+    def convert_align_to_equations(text: str) -> str:
         text = re.sub(r"\\begin\{align\*\}|\\end\{align\*\}", "", text).replace("&", "")
         equations = text.strip().split("\\\\")
         converted = []
@@ -114,7 +131,8 @@ class MixTeXApp:
                 converted.append(f"$$ {eq} $$")
         return "\n".join(converted)
 
-    def pad_image(self, img, out_size):
+    @staticmethod
+    def pad_image(img, out_size: tuple[int, int]):
         x_img, y_img = out_size
         background = Image.new("RGB", (x_img, y_img), (255, 255, 255))
         width, height = img.size
@@ -133,11 +151,18 @@ class MixTeXApp:
         return background
 
 
-mixtex_app = MixTeXApp()
+async def get_mixtex():
+    mixtex_app = MixTeXApp()
+    try:
+        yield mixtex_app
+    finally:
+        pass
 
 
 @app.post("/ocr/")
-async def ocr(image: UploadFile = File(...)):
+async def ocr(
+    image: UploadFile = File(...), mixtex_app: MixTeXApp = Depends(get_mixtex)
+):
     try:
         image = Image.open(io.BytesIO(await image.read())).convert("RGB")
         image = mixtex_app.pad_image(image, (448, 448))
@@ -155,4 +180,8 @@ async def ocr(image: UploadFile = File(...)):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     run("texhelper:app", host="0.0.0.0", port=8000, reload=True)

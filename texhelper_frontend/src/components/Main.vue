@@ -2,15 +2,16 @@
 import { ref } from 'vue'
 import katex from 'katex'
 import temml from 'temml'
+import { server_address } from "../assets/config.json";
 import { ElNotification } from 'element-plus'
 import ShortcutMenu from './ShortcutMenu.vue'
+import EditorMenu from './EditorMenu.vue';
 
 const latexCode = ref('')
 const renderedLatex = ref('')
 
 const image = ref<File | null>(null)
 const imageUrl = ref('')
-const tools = ['x', 'αβγ', 'x^y', '√x', 'lim', 'sin', '∫', '∑', '{[]}'];
 
 const isLoading = ref(false)
 const uploadFileButton = ref<HTMLInputElement | null>(null)
@@ -66,6 +67,11 @@ const handelImagePaste = (event: ClipboardEvent) => {
   }
 }
 
+const handleInsert = (symbol: string) => {
+  latexCode.value += symbol
+  renderLatex()
+}
+
 const imageOcr: () => Promise<string> = async () => {
   if (!image.value) {
     throw new Error('No image uploaded')
@@ -74,7 +80,7 @@ const imageOcr: () => Promise<string> = async () => {
   formData.append('image', image.value)
   isLoading.value = true
   try {
-    const response = await fetch('http://localhost:8000/ocr', {
+    const response = await fetch(`${server_address}/ocr`, {
       method: 'POST',
       body: formData
     })
@@ -122,22 +128,18 @@ const copyMathMLToClipboard = () => {
 <template>
   <div>
     <el-container>
-      <el-header>LaTeX 编辑器</el-header>
+      <el-header>
+        <h2>LaTeX 编辑器</h2>
+      </el-header>
       <el-main v-loading="isLoading">
         <el-row>
           <el-card class="card">
             <h3>输入区域 Input</h3>
             <el-tabs class="tabs">
               <el-tab-pane label="快捷工具">
-                <ShortcutMenu />
-                <el-button-group>
-                  <el-button v-for="tool in tools" :key="tool" size="small">{{ tool }}</el-button>
-                </el-button-group>
+                <ShortcutMenu @insert="handleInsert" />
               </el-tab-pane>
               <el-tab-pane label="公式模板">
-                <el-button-group>
-                  <el-button v-for="tool in tools" :key="tool" size="small">{{ tool }}</el-button>
-                </el-button-group>
               </el-tab-pane>
               <el-tab-pane label="OCR">
                 <div class="image" @paste="handelImagePaste">
@@ -150,6 +152,7 @@ const copyMathMLToClipboard = () => {
                 </div>
               </el-tab-pane>
             </el-tabs>
+            <EditorMenu @insert="handleInsert" />
             <el-input v-model="latexCode" @input="renderLatex" type="textarea" :rows="10" class="latex-input"
               placeholder="请输入LaTeX表达式"></el-input>
           </el-card>
@@ -176,6 +179,10 @@ const copyMathMLToClipboard = () => {
 
 .el-textarea__inner {
   font-family: 'Source Code Pro', 'Hack Nerd Font', 'Courier New', Courier, monospace;
+}
+
+.latex-input {
+  margin-top: 10px;
 }
 
 .latex-output {
